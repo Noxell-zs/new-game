@@ -1,0 +1,37 @@
+{
+  "name": "webgpu_game",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "author": "Noxell-zs",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@magenta/music": "^1.23.1",
+    "@orillusion/core": "^0.7.2",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.30",
+    "@webgpu/types": "^0.1.15",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^7.1.1",
+    "css-minimizer-webpack-plugin": "^6.0.0",
+    "html-webpack-plugin": "^5.5.3",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "mini-css-extract-plugin": "^2.7.6",
+    "oxlint": "^0.3.1",
+    "prettier": "^3.2.5",
+    "terser-webpack-plugin": "^5.3.10",
+    "ts-loader": "^9.2.9",
+    "ts-shader-loader": "^2.0.2",
+    "typescript": "^4.6.4",
+    "webpack": "^5.72.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.4"
+  }
+}

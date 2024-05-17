@@ -1,0 +1,26 @@
+{
+  "manifest_version": "1.0",
+  "version": "1.0",
+  "name": "WebGPU Game",
+  "theme_color": "#260066",
+  "background_color": "#260066",
+  "start_url": "/new-game/",
+
+  "short_name": "WebGPU Game",
+  "description": "",
+  "categories": [],
+  "lang": "ru-Ru",
+
+  "display": "standalone",
+  "dir": "auto",
+  "orientation": "any",
+  "display_override": ["window-controls-overlay"],
+
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
