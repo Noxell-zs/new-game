@@ -159,21 +159,21 @@ export class App {
     planeMr.material = planeMaterial;
     this.scene3D.addChild(plane);
 
-    this.worker = new Worker(
-      // @ts-ignore
-      new URL('./workers/vae-worker', import.meta.url),
-    );
+    this.start(view, cameraObj);
 
-
-    let first = true;
-    this.worker.onmessage = (e) => {
-      if (first) {
-        this.start(view, cameraObj)
-      }
-      first = false;
-      this.sequences.push(e.data);
-    }
-    this.worker.postMessage(5);
+    // this.worker = new Worker(
+    //   // @ts-ignore
+    //   new URL('./workers/rnn-worker', import.meta.url),
+    // );
+    // let first = true;
+    // this.worker.onmessage = (e) => {
+    //   if (first) {
+    //     this.start(view, cameraObj)
+    //   }
+    //   first = false;
+    //   this.sequences.push(e.data);
+    // }
+    // this.worker.postMessage(5);
 
     return Engine3D.startRenderView(view);
   }
