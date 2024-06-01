@@ -14,5 +14,4 @@ export class GameDataController {
 
     return this.health;
   }
-
 }

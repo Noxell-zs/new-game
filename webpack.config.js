@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -11,7 +11,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 const mode = 'production';
 
 const defaultConfig = {
-  name: "default",
+  name: 'default',
   // mode,
   context: path.resolve(__dirname, 'src'),
   entry: {
@@ -44,10 +44,19 @@ const defaultConfig = {
       patterns: [
         {from: 'static', to: 'static'},
         'sw.js',
-        // { from: '../node_modules/@magenta/music/es6/core.js', to: 'core.js' },
-        // { from: '../node_modules/@magenta/music/es6/music_rnn.js', to: 'music_rnn.js' },
-        // { from: '../node_modules/@magenta/music/es6/music_vae.js', to: 'music_vae.js' },
-        // { from: '../node_modules/@tensorflow/tfjs/dist/tf.min.js', to: 'tf.min.js' },
+        {from: '../node_modules/@magenta/music/es6/core.js', to: 'core.js'},
+        {
+          from: '../node_modules/@magenta/music/es6/music_rnn.js',
+          to: 'music_rnn.js',
+        },
+        {
+          from: '../node_modules/@magenta/music/es6/music_vae.js',
+          to: 'music_vae.js',
+        },
+        {
+          from: '../node_modules/@tensorflow/tfjs/dist/tf.min.js',
+          to: 'tf.min.js',
+        },
       ],
     }),
   ],

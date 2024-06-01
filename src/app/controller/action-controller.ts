@@ -10,7 +10,7 @@ import {
   Time,
   Vector3,
 } from '@orillusion/core';
-import {planeHalfSize} from "../consts";
+import {planeHalfSize} from '../consts';
 
 const internal = (target: number, current: number, t: number): number =>
   (current - target) * t;
@@ -137,22 +137,34 @@ export class ActionController extends ComponentBase {
       const targetTransform = this.target.transform;
       const dt = clamp(Time.delta, 0, 0.016) * 1.5;
 
-      targetTransform.x = clamp(targetTransform.x + internal(
+      targetTransform.x = clamp(
         targetTransform.x +
-          (forward.x / forwardDist) *
-          (this.moveState.back - this.moveState.front) +
-          (left.x / leftDist) * (this.moveState.left - this.moveState.right),
-        targetTransform.x,
-        dt,
-      ), -planeHalfSize, planeHalfSize);
-      targetTransform.z = clamp(targetTransform.z + internal(
+          internal(
+            targetTransform.x +
+              (forward.x / forwardDist) *
+                (this.moveState.back - this.moveState.front) +
+              (left.x / leftDist) *
+                (this.moveState.left - this.moveState.right),
+            targetTransform.x,
+            dt,
+          ),
+        -planeHalfSize,
+        planeHalfSize,
+      );
+      targetTransform.z = clamp(
         targetTransform.z +
-          (forward.z / forwardDist) *
-          (this.moveState.back - this.moveState.front) +
-          (left.z / leftDist) * (this.moveState.left - this.moveState.right),
-        targetTransform.z,
-        dt,
-      ), -planeHalfSize, planeHalfSize);
+          internal(
+            targetTransform.z +
+              (forward.z / forwardDist) *
+                (this.moveState.back - this.moveState.front) +
+              (left.z / leftDist) *
+                (this.moveState.left - this.moveState.right),
+            targetTransform.z,
+            dt,
+          ),
+        -planeHalfSize,
+        planeHalfSize,
+      );
     }
   }
 

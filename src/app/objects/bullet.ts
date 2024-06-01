@@ -6,10 +6,9 @@ import {
   Object3D,
   SphereGeometry,
   Transform,
-  UnLitMaterial
-} from "@orillusion/core";
-import {planeHalfSize} from "../consts";
-
+  UnLitMaterial,
+} from '@orillusion/core';
+import {planeHalfSize} from '../consts';
 
 class BulletScript extends ComponentBase {
   public onUpdate() {
@@ -42,7 +41,7 @@ export class Bullet extends Object3D {
     bulletMaterial.baseColor = new Color(1, 0.5, 0.2, 0.9);
     bulletMaterial.transparent = true;
     bulletMaterial.blendMode = BlendMode.ALPHA;
-    meshRenderer.material =  bulletMaterial;
+    meshRenderer.material = bulletMaterial;
     meshRenderer.geometry = bulletGeometry;
 
     this.y = 2;

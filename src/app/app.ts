@@ -19,16 +19,15 @@ import {
   UIImage,
   makeAloneSprite,
   BitmapTexture2D,
-  Texture,
+  Texture, SkeletonAnimationComponent,
 } from '@orillusion/core';
 import {ActionController} from './controller/action-controller';
-import {planeHalfSize} from "./consts";
-import {Bullet} from "./objects/bullet";
-import {Wall} from "./objects/wall";
-import {Enemy} from "./objects/enemy";
-import {GameDataController} from "./controller/game-data-controller";
-import {Player} from "@magenta/music";
-
+import {planeHalfSize} from './consts';
+import {Bullet} from './objects/bullet';
+import {Wall} from './objects/wall';
+import {Enemy, getEnemy} from './objects/enemy';
+import {GameDataController} from './controller/game-data-controller';
+import {Player} from '@magenta/music';
 
 export class App {
   private setHealth: (value: string | number) => string;
@@ -47,10 +46,11 @@ export class App {
   private sequences: any[] = [];
   private tempo = 180;
   private worker: Worker;
+  private rootEnemy: Enemy;
 
   private spawnEnemies(number: number = 3): void {
     for (let i = 0; i < number; ++i) {
-      const enemy = new Enemy(this.player.transform.localPosition);
+      const enemy = getEnemy(this.rootEnemy);
       this.enemies.add(enemy);
       this.scene3D.addChild(enemy);
     }
@@ -59,22 +59,23 @@ export class App {
   async init() {
     await Engine3D.init({
       canvasConfig: {canvas: this.canvas},
-      renderLoop: ()=> {
+      renderLoop: () => {
         if (!this.started) return;
 
         enemiesLoop: for (const enemy of this.enemies) {
           const enemyPosition = enemy.localPosition;
 
           for (const bullet of this.bullets) {
-            const bulletPosition =  bullet.localPosition;
+            const bulletPosition = bullet.localPosition;
             if (!bulletPosition) {
               continue;
             }
 
             if (
               (enemyPosition.x - bulletPosition.x) ** 2 +
-              (enemyPosition.z - bulletPosition.z) ** 2 <= 1
-              && (enemyPosition.y - bulletPosition.y) ** 2 <= 4
+                (enemyPosition.z - bulletPosition.z) ** 2 <=
+                1 &&
+              (enemyPosition.y + 2 - bulletPosition.y) ** 2 <= 4
             ) {
               this.enemies.delete(enemy);
               this.bullets.delete(bullet);
@@ -87,7 +88,7 @@ export class App {
 
           if (
             (enemyPosition.x - this.player.x) ** 2 +
-            (enemyPosition.z - this.player.z) ** 2 <= 1
+              (enemyPosition.z - this.player.z) ** 2 <= 1
           ) {
             this.enemies.delete(enemy);
             enemy.destroy();
@@ -95,13 +96,20 @@ export class App {
           }
         }
 
-        if (!this.enemies.size) {
+        if (!this.enemies.size && this.rootEnemy.playerPosition) {
           this.spawnEnemies(3);
         }
-
       },
     });
     this.scene3D = new Scene3D();
+
+    this.rootEnemy = await Engine3D.res.loadGltf(
+      'static/models/CesiumMan_compress.gltf'
+    ) as Enemy;
+    this.rootEnemy.scaleX = 2;
+    this.rootEnemy.scaleY = 2;
+    this.rootEnemy.scaleZ = 2;
+    this.rootEnemy.y = 0;
 
     const evnMap = new BitmapTextureCube();
     await evnMap.load([
@@ -121,7 +129,6 @@ export class App {
     const camera = cameraObj.addComponent(Camera3D);
     camera.perspective(60, window.innerWidth / window.innerHeight, 1, 5000);
     this.scene3D.addChild(cameraObj);
-
 
     const light = new Object3D();
     light.rotationX = 45;
@@ -150,7 +157,7 @@ export class App {
     planeMaterial.baseMap = this.groundTexture;
     planeMaterial.setUniformVector4(
       'transformUV1',
-      new Vector4(0, 0, planeHalfSize * 2, planeHalfSize * 2)
+      new Vector4(0, 0, planeHalfSize * 2, planeHalfSize * 2),
     );
     planeMaterial.roughness = 1;
     planeMaterial.metallic = 0;
@@ -159,29 +166,22 @@ export class App {
     planeMr.material = planeMaterial;
     this.scene3D.addChild(plane);
 
-    this.start(view, cameraObj);
+    this.worker = new Worker(new URL('./workers/rnn-worker', import.meta.url));
 
-    // this.worker = new Worker(
-    //   // @ts-ignore
-    //   new URL('./workers/rnn-worker', import.meta.url),
-    // );
-    // let first = true;
-    // this.worker.onmessage = (e) => {
-    //   if (first) {
-    //     this.start(view, cameraObj)
-    //   }
-    //   first = false;
-    //   this.sequences.push(e.data);
-    // }
-    // this.worker.postMessage(5);
+    new Promise(
+      (resolve) =>
+        (this.worker.onmessage = (e) => {
+          this.sequences.push(e.data);
+          resolve(null);
+        }),
+    ).then(() => this.start(view, cameraObj));
+
+    this.worker.postMessage(3);
 
     return Engine3D.startRenderView(view);
   }
 
-  async start(
-    view: View3D,
-    cameraObj: Object3D,
-  ): Promise<void> {
+  async start(view: View3D, cameraObj: Object3D): Promise<void> {
     this.walls.add(new Wall(10, 2, -10, 1, 4, 20));
     this.walls.add(new Wall(10, 2, 10, 20, 4, 1));
     for (const wall of this.walls) {
@@ -211,7 +211,7 @@ export class App {
     score.uiTransform.resize(256, 256);
     score.uiTransform.x = this.canvas.width / 2;
     score.uiTransform.y = this.canvas.height / 2;
-    this.setScore = (value: number | string) => score.text = `${value}`;
+    this.setScore = (value: number | string) => (score.text = `${value}`);
 
     const healthQuad = new Object3D();
     viewPanel.addChild(healthQuad);
@@ -223,20 +223,21 @@ export class App {
     health.uiTransform.resize(256, 256);
     health.uiTransform.x = this.canvas.width / -2;
     health.uiTransform.y = this.canvas.height / 2;
-    this.setHealth = (value: number | string) => health.text = `${value}`;
+    this.setHealth = (value: number | string) => (health.text = `${value}`);
 
-    addEventListener('resize', () => setTimeout(() => {
-      guiPanel.uiTransform.resize(this.canvas.width, this.canvas.height);
-      score.uiTransform.x = this.canvas.width / 2;
-      health.uiTransform.x = this.canvas.width / -2;
-      score.uiTransform.y = health.uiTransform.y = this.canvas.height / 2;
-    }));
-
+    addEventListener('resize', () =>
+      setTimeout(() => {
+        guiPanel.uiTransform.resize(this.canvas.width, this.canvas.height);
+        score.uiTransform.x = this.canvas.width / 2;
+        health.uiTransform.x = this.canvas.width / -2;
+        score.uiTransform.y = health.uiTransform.y = this.canvas.height / 2;
+      }),
+    );
 
     this.player = new Object3D();
     this.player.transform.localPosition.set(0, 2, 0);
     this.scene3D.addChild(this.player);
-
+    this.rootEnemy.playerPosition = this.player.transform.localPosition;
 
     const controller = cameraObj.addComponent(ActionController);
     controller.moveSpeed = 10;
@@ -266,11 +267,10 @@ export class App {
       }
 
       if (this.sequences.length < 3) {
-        this.worker.postMessage(5);
+        this.worker.postMessage(3);
       }
 
-      const coef =
-        60 / this.tempo / seq.quantizationInfo.stepsPerQuarter;
+      const coef = 60 / this.tempo / seq.quantizationInfo.stepsPerQuarter;
       const arr = [
         ...new Set(seq.notes.map((note: any) => note.quantizedStartStep!)),
       ].sort();
@@ -286,5 +286,4 @@ export class App {
 
     action();
   }
-
 }

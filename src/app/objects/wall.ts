@@ -1,8 +1,11 @@
 import {
   MeshRenderer,
   Object3D,
-  BoxGeometry, LitMaterial, UnLitMaterial, Color
-} from "@orillusion/core";
+  BoxGeometry,
+  LitMaterial,
+  UnLitMaterial,
+  Color,
+} from '@orillusion/core';
 
 export class Wall extends Object3D {
   material: LitMaterial | UnLitMaterial;
