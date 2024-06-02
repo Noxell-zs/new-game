@@ -19,7 +19,7 @@ import {
   UIImage,
   makeAloneSprite,
   BitmapTexture2D,
-  Texture, PointerEvent3D, GUICanvas,
+  Texture, PointerEvent3D, GUICanvas, Vector3,
 } from '@orillusion/core';
 import {ActionController} from './controller/action-controller';
 import {planeHalfSize} from './consts';
@@ -30,6 +30,17 @@ import {GameDataController} from './controller/game-data-controller';
 import {Player} from '@magenta/music';
 import {Button} from "./objects/button";
 import {getFile} from "./controller/load-file";
+import {
+  ParticleSystem,
+  ParticleMaterial,
+  ParticleStandardSimulator,
+  ParticleEmitterModule,
+  ShapeType,
+  EmitLocation,
+  ParticleGravityModifierModule,
+  ParticleOverLifeColorModule,
+} from '@orillusion/particle';
+
 
 const modes = ['default', 'vae', 'rnn', 'custom'] as const;
 type Modes = typeof modes[number];
@@ -184,8 +195,79 @@ export class App {
     this.gui = this.view.enableUICanvas();
 
     this.initMainMenu();
+    await this.initParticles();
 
     return Engine3D.startRenderView(this.view);
+  }
+
+  async initParticles(): Promise<void> {
+    {
+      const objParticles = new Object3D();
+      objParticles.y = 100;
+      this.scene3D.addChild(objParticles);
+
+      const particleSystem = objParticles.addComponent(ParticleSystem);
+
+      const material = new ParticleMaterial();
+      material.baseMap = await Engine3D.res.loadTexture('static/img/fx_a_fragment_003.png');
+
+      particleSystem.geometry = new PlaneGeometry(2, 8, 1, 1, Vector3.Z_AXIS);
+      particleSystem.material = material;
+
+      const simulator = particleSystem.useSimulator(ParticleStandardSimulator);
+
+      const emitter = simulator.addModule(ParticleEmitterModule);
+      emitter.maxParticle = 10000;
+      emitter.duration = 10;
+      emitter.emissionRate = 1000;
+      emitter.startLifecycle.setScalar(1);
+      emitter.shapeType = ShapeType.Box;
+      emitter.boxSize = new Vector3(3*planeHalfSize, 1, 3*planeHalfSize);
+      emitter.emitLocation = EmitLocation.Shell;
+
+      const gravityModifier = simulator.addModule(ParticleGravityModifierModule);
+      gravityModifier.gravity = new Vector3(0, -7, 0);
+
+      const overLifeColorModule = simulator.addModule(ParticleOverLifeColorModule);
+      overLifeColorModule.startColor = new Color(0, 0, 1);
+      overLifeColorModule.startAlpha = 0.1;
+      overLifeColorModule.endColor = new Color(0, 1, 0.5);
+      overLifeColorModule.endAlpha = 1.0;
+
+      particleSystem.play();
+    }
+    {
+      const objParticles = new Object3D();
+      objParticles.y = 0.1;
+      this.scene3D.addChild(objParticles);
+
+      const particleSystem = objParticles.addComponent(ParticleSystem);
+
+      const material = new ParticleMaterial();
+      material.baseMap = await Engine3D.res.loadTexture('static/img/fx_a_glow_003.png');
+
+      particleSystem.geometry = new PlaneGeometry(1, 1, 1, 1, Vector3.Z_AXIS);
+      particleSystem.material = material;
+
+      const simulator = particleSystem.useSimulator(ParticleStandardSimulator);
+
+      const emitter = simulator.addModule(ParticleEmitterModule);
+      emitter.maxParticle = 10000;
+      emitter.duration = 10;
+      emitter.emissionRate = 1000;
+      emitter.startLifecycle.setScalar(1);
+      emitter.shapeType = ShapeType.Box;
+      emitter.boxSize = new Vector3(2*planeHalfSize, 0.3, 2*planeHalfSize);
+      emitter.emitLocation = EmitLocation.Shell;
+
+      const overLifeColorModule = simulator.addModule(ParticleOverLifeColorModule);
+      overLifeColorModule.startColor = new Color(1, 0, 0);
+      overLifeColorModule.startAlpha = 0.1;
+      overLifeColorModule.endColor = new Color(1, 0, 0.5);
+      overLifeColorModule.endAlpha = 1.0;
+
+      particleSystem.play();
+    }
   }
 
   initMainMenu(): void {

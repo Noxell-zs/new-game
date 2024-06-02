@@ -12,6 +12,7 @@
   "dependencies": {
     "@magenta/music": "^1.23.1",
     "@orillusion/core": "^0.7.2",
+    "@orillusion/particle": "^0.1.0",
     "buffer": "^6.0.3"
   },
   "devDependencies": {
