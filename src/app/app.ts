@@ -27,7 +27,7 @@ import {Bullet} from './objects/bullet';
 import {Wall} from './objects/wall';
 import {Enemy, getEnemy} from './objects/enemy';
 import {GameDataController} from './controller/game-data-controller';
-import {Player} from '@magenta/music';
+import {INoteSequence, Player} from '@magenta/music';
 import {Button} from "./objects/button";
 import {getFile} from "./controller/load-file";
 import {
@@ -40,6 +40,8 @@ import {
   ParticleGravityModifierModule,
   ParticleOverLifeColorModule,
 } from '@orillusion/particle';
+import {sortNumbers} from "./utils";
+import {Circle} from "./objects/circle";
 
 
 const modes = ['default', 'vae', 'rnn', 'custom'] as const;
@@ -63,8 +65,12 @@ export class App {
   private view: View3D;
   private cameraObj: Object3D;
   private gui: GUICanvas;
+  private startTime: number = 0;
+  private beatSequence?: Set<number>;
+  private circleTexture2D: BitmapTexture2D;
+  private viewPanel: Object3D;
 
-  private readonly sequences: any[] = [];
+  private readonly sequences: INoteSequence[] = [];
   private tempo: number = tempoValues[1];
   private timeWindow: number = windowsValues[1];
   private worker?: Worker;
@@ -176,6 +182,10 @@ export class App {
 
     this.bitmapTexture2D = new BitmapTexture2D();
     await this.bitmapTexture2D.load('static/img/plus.png');
+
+    this.circleTexture2D = new BitmapTexture2D();
+    this.circleTexture2D.flipY = true;
+    await this.circleTexture2D.load('static/img/circle.png');
 
     const plane = new Object3D();
     plane.transform.localPosition.set(0, 0, 0);
@@ -474,9 +484,9 @@ export class App {
   }
 
   async start(): Promise<void> {
-    const viewPanel = new Object3D();
-    const guiPanel = viewPanel.addComponent(ViewPanel);
-    this.gui.addChild(viewPanel);
+    this.viewPanel = new Object3D();
+    const guiPanel = this.viewPanel.addComponent(ViewPanel);
+    this.gui.addChild(this.viewPanel);
 
     switch (this.mode) {
       case 'default':
@@ -509,14 +519,14 @@ export class App {
     }
 
     const imageQuad = new Object3D();
-    viewPanel.addChild(imageQuad);
+    this.viewPanel.addChild(imageQuad);
     const image = imageQuad.addComponent(UIImage);
     image.uiTransform.resize(32, 32);
     image.sprite = makeAloneSprite('center', this.bitmapTexture2D);
-    viewPanel.addChild(imageQuad);
+    this.viewPanel.addChild(imageQuad);
 
     const scoreQuad = new Object3D();
-    viewPanel.addChild(scoreQuad);
+    this.viewPanel.addChild(scoreQuad);
     const score = scoreQuad.addComponent(UITextField);
     score.text = `${this.gameDataController.score}`;
     score.color = new Color(0, 1, 0, 1);
@@ -528,7 +538,7 @@ export class App {
     this.setScore = (value: number | string) => (score.text = `${value}`);
 
     const healthQuad = new Object3D();
-    viewPanel.addChild(healthQuad);
+    this.viewPanel.addChild(healthQuad);
     const health = healthQuad.addComponent(UITextField);
     health.text = `${this.gameDataController.health}`;
     health.color = new Color(1, 0, 0, 1);
@@ -559,9 +569,21 @@ export class App {
     controller.target = this.player;
     controller.canvas = this.canvas;
     controller.clickTarget = (value?: any) => {
-      const bullet = new Bullet(controller.transform);
-      this.bullets.add(bullet);
-      this.scene3D.addChild(bullet);
+      if (!this.beatSequence) {
+        return;
+      }
+      const now = Date.now() - this.startTime;
+
+      for (const moment of this.beatSequence) {
+        if (moment - now < -this.timeWindow) {
+          this.beatSequence.delete(moment);
+        } else if (Math.abs(moment - now) <= this.timeWindow) {
+          const bullet = new Bullet(controller.transform);
+          this.bullets.add(bullet);
+          this.scene3D.addChild(bullet);
+          break;
+        }
+      }
     };
 
     this.spawnEnemies(3);
@@ -584,11 +606,17 @@ export class App {
         this.worker?.postMessage(3);
       }
 
-      const coef = 60 / this.tempo / seq.quantizationInfo.stepsPerQuarter;
-      const arr = [
-        ...new Set(seq.notes.map((note: any) => note.quantizedStartStep!)),
-      ].sort();
+      const coef = 1000 * 60 / this.tempo / seq.quantizationInfo!.stepsPerQuarter!;
+      this.beatSequence = new Set(seq.notes!.map((note) => note.quantizedStartStep! * coef).sort(sortNumbers));
+      this.startTime = Date.now();
 
+      for (const interval of this.beatSequence) {
+        if (interval < 1000) continue;
+        setTimeout(() =>
+          this.viewPanel.addChild(new Circle(this.circleTexture2D)),
+          interval - 1000
+        )
+      }
       player.start(seq, this.tempo);
     };
 
