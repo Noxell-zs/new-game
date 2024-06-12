@@ -11,6 +11,7 @@ import {
   Vector3,
 } from '@orillusion/core';
 import {planeHalfSize} from '../consts';
+import {Enemy} from "../objects/enemy";
 
 const internal = (target: number, current: number, t: number): number =>
   (current - target) * t;
@@ -21,6 +22,9 @@ export class ActionController extends ComponentBase {
   public moveSpeed: number = 5;
   public canvas: HTMLCanvasElement;
   public clickTarget?: CallableFunction;
+
+  public enemies?: Set<Enemy>;
+  private targetEnemy?: Enemy;
 
   private camera: Camera3D;
   private moveState: Record<'front' | 'back' | 'left' | 'right', number> = {
@@ -37,11 +41,14 @@ export class ActionController extends ComponentBase {
   public start(): void {
     this.camera = this.object3D.getOrAddComponent(Camera3D);
 
-    Engine3D.inputSystem.addEventListener(
-      PointerEvent3D.POINTER_MOVE,
-      this.mouseMove,
-      this,
-    );
+    if (!this.enemies) {
+      Engine3D.inputSystem.addEventListener(
+        PointerEvent3D.POINTER_MOVE,
+        this.mouseMove,
+        this,
+      );
+    }
+
     Engine3D.inputSystem.addEventListener(
       PointerEvent3D.POINTER_CLICK,
       this.click,
@@ -166,14 +173,50 @@ export class ActionController extends ComponentBase {
         planeHalfSize,
       );
     }
+
+    if (this.enemies) {
+      if (!this.enemies.has(this.targetEnemy!)) {
+        this.targetEnemy = undefined;
+      }
+
+      if (!this.targetEnemy) {
+        let minDistance: undefined | number;
+
+        for (const enemy of this.enemies) {
+          const distance = Vector3.distance(enemy.localPosition, this.target.localPosition);
+          minDistance ??= distance;
+          this.targetEnemy ??= enemy;
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            this.targetEnemy = enemy;
+          }
+        }
+      }
+
+      if (this.targetEnemy) {
+        const
+          x = this.targetEnemy.localPosition.x - this.target.localPosition.x,
+          z = this.targetEnemy.localPosition.z - this.target.localPosition.z;
+        const length = (x*x + z*z) ** 0.5;
+
+        const temp = this.transform.localRotation;
+        temp.y = 0.5 * temp.y + 0.5 * Math.acos(z / length) * Math.sign(Math.asin(x / length)) * 180 / Math.PI;
+        this.transform.localRotation = temp;
+      }
+    }
+
   }
 
   public destroy(force?: boolean): void {
-    Engine3D.inputSystem.removeEventListener(
-      PointerEvent3D.POINTER_MOVE,
-      this.mouseMove,
-      this,
-    );
+    if (!this.enemies) {
+      Engine3D.inputSystem.removeEventListener(
+        PointerEvent3D.POINTER_MOVE,
+        this.mouseMove,
+        this,
+      );
+    }
+
     Engine3D.inputSystem.removeEventListener(
       PointerEvent3D.POINTER_CLICK,
       this.click,

@@ -568,6 +568,9 @@ export class App {
     controller.distance = 10;
     controller.target = this.player;
     controller.canvas = this.canvas;
+    if (this.simpleMode) {
+      controller.enemies = this.enemies;
+    }
     controller.clickTarget = (value?: any) => {
       if (!this.beatSequence) {
         return;
