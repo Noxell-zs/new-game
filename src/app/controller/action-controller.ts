@@ -12,15 +12,17 @@ import {
 } from '@orillusion/core';
 import {planeHalfSize} from '../consts';
 import {Enemy} from "../objects/enemy";
+import {Wall} from "../objects/wall";
 
 const internal = (target: number, current: number, t: number): number =>
   (current - target) * t;
 
 export class ActionController extends ComponentBase {
   public target: Object3D;
-  public distance: number = 5;
-  public moveSpeed: number = 5;
+  public distance: number;
+  public moveSpeed: number;
   public canvas: HTMLCanvasElement;
+  public walls: Set<Wall>;
   public clickTarget?: CallableFunction;
 
   public enemies?: Set<Enemy>;
@@ -144,7 +146,7 @@ export class ActionController extends ComponentBase {
       const targetTransform = this.target.transform;
       const dt = clamp(Time.delta, 0, 0.016) * 1.5;
 
-      targetTransform.x = clamp(
+      const x = clamp(
         targetTransform.x +
           internal(
             targetTransform.x +
@@ -158,7 +160,7 @@ export class ActionController extends ComponentBase {
         -planeHalfSize,
         planeHalfSize,
       );
-      targetTransform.z = clamp(
+      const z = clamp(
         targetTransform.z +
           internal(
             targetTransform.z +
@@ -172,6 +174,24 @@ export class ActionController extends ComponentBase {
         -planeHalfSize,
         planeHalfSize,
       );
+
+      let canMove = true;
+      for (const wall of this.walls) {
+        if (
+          x <= wall.x + wall.width &&
+          x >= wall.x - wall.width &&
+          z <= wall.z + wall.depth &&
+          z >= wall.z - wall.depth
+        ) {
+          canMove = false;
+          break;
+        }
+      }
+
+      if (canMove) {
+        targetTransform.x = x;
+        targetTransform.z = z;
+      }
     }
 
     if (this.enemies) {

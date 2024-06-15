@@ -568,6 +568,8 @@ export class App {
     controller.distance = 10;
     controller.target = this.player;
     controller.canvas = this.canvas;
+    controller.walls = this.walls;
+
     if (this.simpleMode) {
       controller.enemies = this.enemies;
     }

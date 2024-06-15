@@ -9,6 +9,8 @@ import {
 
 export class Wall extends Object3D {
   material: LitMaterial | UnLitMaterial;
+  width: number;
+  depth: number;
 
   constructor(
     x: number,
@@ -23,6 +25,8 @@ export class Wall extends Object3D {
     this.x = x;
     this.y = y;
     this.z = z;
+    this.width = width / 2 + 1.1;
+    this.depth = depth / 2 + 1.1;
 
     const meshRender = this.addComponent(MeshRenderer);
     meshRender.geometry = new BoxGeometry(width, height, depth);
