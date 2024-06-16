@@ -1,15 +1,11 @@
 {
   "manifest_version": "1.0",
   "version": "1.0",
-  "name": "WebGPU Game",
+  "name": "Rhythm Shooter Game",
   "theme_color": "#260066",
   "background_color": "#260066",
-  "start_url": "/new-game/",
-
-  "short_name": "WebGPU Game",
-  "description": "",
-  "categories": [],
-  "lang": "ru-Ru",
+  "start_url": "/rhythm-shooter/",
+  "description": "The computer game in the genre of rhythm shooter",
 
   "display": "standalone",
   "dir": "auto",
@@ -20,6 +16,11 @@
     {
       "src": "favicon.svg",
       "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "img/icon512.png",
+      "sizes": "512x512",
       "type": "image/svg+xml"
     }
   ]
