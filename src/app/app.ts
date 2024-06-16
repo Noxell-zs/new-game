@@ -42,6 +42,7 @@ import {
 } from '@orillusion/particle';
 import {sortNumbers} from "./utils";
 import {Circle, circleLifetime} from "./objects/circle";
+import {Kick} from "./controller/audio-kick";
 
 
 const modes = ['default', 'vae', 'rnn', 'custom'] as const;
@@ -69,6 +70,7 @@ export class App {
   private circleTexture2D: BitmapTexture2D;
   private viewPanel: Object3D;
   private actionController: ActionController;
+  private readonly kick = new Kick();
 
   private readonly sequences: INoteSequence[] = [];
   private tempo: number = tempoValues[1];
@@ -89,6 +91,48 @@ export class App {
       const enemy = getEnemy(this.rootEnemy);
       this.enemies.add(enemy);
       this.scene3D.addChild(enemy);
+    }
+  }
+
+  private stepNN(): void {
+    const targetMoment = this.beatSequence?.[this.beatTarget];
+    if (targetMoment != undefined) {
+      const now = Date.now() - this.startTime;
+
+      for (const bulletMoment of this.readyBullets) {
+        if (now < bulletMoment - circleLifetime) {
+          break;
+        } else if (now <= bulletMoment) {
+          this.readyBullets.delete(bulletMoment);
+          this.viewPanel.addChild(new Circle(this.circleTexture2D));
+        } else {
+          this.readyBullets.delete(bulletMoment);
+        }
+      }
+
+      if (now < targetMoment - 50) {
+        this.canAttack = false;
+      } else if (now <= targetMoment + this.timeWindow) {
+        this.canAttack = true;
+      } else {
+        ++this.beatTarget;
+        this.canAttack = false;
+      }
+
+    } else {
+      this.canAttack = true;
+    }
+  }
+
+  private stepDefault(): void {
+    const now = Date.now();
+
+    this.canAttack = now <= this.startTime + this.timeWindow;
+
+    if (now >= this.startTime + circleLifetime) {
+      this.kick.trigger();
+      this.startTime = now;
+      this.viewPanel.addChild(new Circle(this.circleTexture2D));
     }
   }
 
@@ -131,37 +175,18 @@ export class App {
             this.setHealth(this.gameDataController.damage());
           }
         }
-
         if (!this.enemies.size && this.rootEnemy.playerPosition) {
           this.spawnEnemies(3);
         }
 
-        const targetMoment = this.beatSequence?.[this.beatTarget];
-        if (targetMoment != undefined) {
-          const now = Date.now() - this.startTime;
-
-          for (const bulletMoment of this.readyBullets) {
-            if (now < bulletMoment - circleLifetime) {
-              break;
-            } else if (now <= bulletMoment) {
-              this.readyBullets.delete(bulletMoment);
-              this.viewPanel.addChild(new Circle(this.circleTexture2D));
-            } else {
-              this.readyBullets.delete(bulletMoment);
-            }
-          }
-
-          if (now < targetMoment - this.timeWindow) {
-            this.canAttack = false;
-          } else if (now <= targetMoment + this.timeWindow) {
-            this.canAttack = true;
-          } else {
-            ++this.beatTarget;
-            this.canAttack = false;
-          }
-
-        } else {
-          this.canAttack = true;
+        switch (this.mode) {
+          case "vae":
+          case "rnn":
+            this.stepNN();
+            break;
+          case "default":
+            this.stepDefault();
+            break;
         }
 
       },
@@ -535,15 +560,6 @@ export class App {
         break;
     }
 
-    if (this.worker) {
-      await new Promise(resolve => {
-        this.worker!.onmessage = (e) => {
-          this.sequences.push(e.data);
-          resolve(null);
-        };
-        this.worker!.postMessage(3);
-      });
-    }
 
     this.walls.add(new Wall(10, 2, -10, 1, 4, 20));
     this.walls.add(new Wall(10, 2, 10, 20, 4, 1));
@@ -617,11 +633,21 @@ export class App {
 
     this.spawnEnemies(3);
 
-    this.playMusic();
+    if (this.worker) {
+      await new Promise(resolve => {
+        this.worker!.onmessage = (e) => {
+          this.sequences.push(e.data);
+          resolve(null);
+        };
+        this.worker!.postMessage(3);
+      });
+      this.playMusicNN();
+    }
+
     this.started = true;
   }
 
-  playMusic(): void {
+  playMusicNN(): void {
     Player.tone.context.resume();
 
     const action = () => {
@@ -643,7 +669,6 @@ export class App {
       this.beatSequence = [...this.readyBullets];
 
       player.start(seq, this.tempo);
-      console.log('start');
       this.beatTarget = 0;
       this.startTime = Date.now();
 
