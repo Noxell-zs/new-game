@@ -41,13 +41,13 @@ import {
   ParticleOverLifeColorModule,
 } from '@orillusion/particle';
 import {sortNumbers} from "./utils";
-import {Circle} from "./objects/circle";
+import {Circle, circleLifetime} from "./objects/circle";
 
 
 const modes = ['default', 'vae', 'rnn', 'custom'] as const;
 type Modes = typeof modes[number];
-const tempoValues = [60, 120, 180, 240] as const;
-const windowsValues = [50, 500, 2500, 5000] as const;
+const tempoValues = [30, 60, 120, 180] as const;
+const windowsValues = [50, 100, 500, 1000] as const;
 
 export class App {
   private setHealth: (value: string | number) => string;
@@ -66,9 +66,9 @@ export class App {
   private cameraObj: Object3D;
   private gui: GUICanvas;
   private startTime: number = 0;
-  private beatSequence?: Set<number>;
   private circleTexture2D: BitmapTexture2D;
   private viewPanel: Object3D;
+  private actionController: ActionController;
 
   private readonly sequences: INoteSequence[] = [];
   private tempo: number = tempoValues[1];
@@ -78,6 +78,11 @@ export class App {
   private file?: File;
   private mode: Modes = 'default';
   private simpleMode = false;
+
+  private beatSequence?: Array<number>;
+  private beatTarget: number = 0;
+  private canAttack = true;
+  private readyBullets: Set<number>;
 
   private spawnEnemies(number: number = 3): void {
     for (let i = 0; i < number; ++i) {
@@ -130,6 +135,35 @@ export class App {
         if (!this.enemies.size && this.rootEnemy.playerPosition) {
           this.spawnEnemies(3);
         }
+
+        const targetMoment = this.beatSequence?.[this.beatTarget];
+        if (targetMoment != undefined) {
+          const now = Date.now() - this.startTime;
+
+          for (const bulletMoment of this.readyBullets) {
+            if (now < bulletMoment - circleLifetime) {
+              break;
+            } else if (now <= bulletMoment) {
+              this.readyBullets.delete(bulletMoment);
+              this.viewPanel.addChild(new Circle(this.circleTexture2D));
+            } else {
+              this.readyBullets.delete(bulletMoment);
+            }
+          }
+
+          if (now < targetMoment - this.timeWindow) {
+            this.canAttack = false;
+          } else if (now <= targetMoment + this.timeWindow) {
+            this.canAttack = true;
+          } else {
+            ++this.beatTarget;
+            this.canAttack = false;
+          }
+
+        } else {
+          this.canAttack = true;
+        }
+
       },
     });
     this.scene3D = new Scene3D();
@@ -563,31 +597,21 @@ export class App {
     this.scene3D.addChild(this.player);
     this.rootEnemy.playerPosition = this.player.transform.localPosition;
 
-    const controller = this.cameraObj.addComponent(ActionController);
-    controller.moveSpeed = 10;
-    controller.distance = 10;
-    controller.target = this.player;
-    controller.canvas = this.canvas;
-    controller.walls = this.walls;
+    this.actionController = this.cameraObj.addComponent(ActionController);
+    this.actionController.moveSpeed = 10;
+    this.actionController.distance = 10;
+    this.actionController.target = this.player;
+    this.actionController.canvas = this.canvas;
+    this.actionController.walls = this.walls;
 
     if (this.simpleMode) {
-      controller.enemies = this.enemies;
+      this.actionController.enemies = this.enemies;
     }
-    controller.clickTarget = (value?: any) => {
-      if (!this.beatSequence) {
-        return;
-      }
-      const now = Date.now() - this.startTime;
-
-      for (const moment of this.beatSequence) {
-        if (moment - now < -this.timeWindow) {
-          this.beatSequence.delete(moment);
-        } else if (Math.abs(moment - now) <= this.timeWindow) {
-          const bullet = new Bullet(controller.transform);
-          this.bullets.add(bullet);
-          this.scene3D.addChild(bullet);
-          break;
-        }
+    this.actionController.clickTarget = (value?: any) => {
+      if (this.canAttack) {
+        const bullet = new Bullet(this.actionController.transform);
+        this.bullets.add(bullet);
+        this.scene3D.addChild(bullet);
       }
     };
 
@@ -612,17 +636,17 @@ export class App {
       }
 
       const coef = 1000 * 60 / this.tempo / seq.quantizationInfo!.stepsPerQuarter!;
-      this.beatSequence = new Set(seq.notes!.map((note) => note.quantizedStartStep! * coef).sort(sortNumbers));
+
+      this.readyBullets = new Set(
+        seq.notes!.map((note) => note.quantizedStartStep! * coef).sort(sortNumbers)
+      );
+      this.beatSequence = [...this.readyBullets];
+
+      player.start(seq, this.tempo);
+      console.log('start');
+      this.beatTarget = 0;
       this.startTime = Date.now();
 
-      for (const interval of this.beatSequence) {
-        if (interval < 1000) continue;
-        setTimeout(() =>
-          this.viewPanel.addChild(new Circle(this.circleTexture2D)),
-          interval - 1000
-        )
-      }
-      player.start(seq, this.tempo);
     };
 
     const player = new Player(false, {

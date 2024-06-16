@@ -11,7 +11,7 @@ import {
 } from "@orillusion/core";
 import {Enemy} from "./enemy";
 
-const circleLifetime = 1000;
+export const circleLifetime = 1000;
 const circleSize = 160;
 const circleDiff = circleSize / circleLifetime;
 
