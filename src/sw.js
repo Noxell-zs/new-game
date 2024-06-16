@@ -9,6 +9,10 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.url.includes('yandex')) {
+    return event.respondWith(fetch(event.request).catch(e => undefined));
+  }
+
   event.respondWith(
     fromCache(event.request)
       .then((response) => update(event, response))
