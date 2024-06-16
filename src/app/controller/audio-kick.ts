@@ -1,7 +1,11 @@
 export class Kick {
-  private readonly context = new AudioContext();
+  private context: AudioContext;
   private osc: OscillatorNode;
   private gain: GainNode;
+
+  constructor(context: AudioContext) {
+    this.context = context;
+  }
 
   private setup(): void {
     this.osc = this.context.createOscillator();

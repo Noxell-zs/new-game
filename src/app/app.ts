@@ -43,6 +43,7 @@ import {
 import {sortNumbers} from "./utils";
 import {Circle, circleLifetime} from "./objects/circle";
 import {Kick} from "./controller/audio-kick";
+import {getBuffer, getPeaks} from "./controller/custom-music";
 
 
 const modes = ['default', 'vae', 'rnn', 'custom'] as const;
@@ -70,7 +71,8 @@ export class App {
   private circleTexture2D: BitmapTexture2D;
   private viewPanel: Object3D;
   private actionController: ActionController;
-  private readonly kick = new Kick();
+  private readonly audioContext = new AudioContext();
+  private readonly kick = new Kick(this.audioContext);
 
   private readonly sequences: INoteSequence[] = [];
   private tempo: number = tempoValues[1];
@@ -94,7 +96,7 @@ export class App {
     }
   }
 
-  private stepNN(): void {
+  private stepOnSequence(): void {
     const targetMoment = this.beatSequence?.[this.beatTarget];
     if (targetMoment != undefined) {
       const now = Date.now() - this.startTime;
@@ -179,14 +181,10 @@ export class App {
           this.spawnEnemies(3);
         }
 
-        switch (this.mode) {
-          case "vae":
-          case "rnn":
-            this.stepNN();
-            break;
-          case "default":
-            this.stepDefault();
-            break;
+        if (this.mode === 'default') {
+          this.stepDefault();
+        } else {
+          this.stepOnSequence();
         }
 
       },
@@ -354,8 +352,11 @@ export class App {
       loadButton.addEventListener(
         PointerEvent3D.PICK_CLICK_GUI,
         () => getFile()
-          .then(file => this.file = file)
-          .catch(() => null),
+          .then(file => {
+            this.file = file;
+            loadButton.select(!!file);
+          })
+          .catch(() => loadButton.select(false)),
         this,
       );
       viewPanel.addChild(loadButton);
@@ -547,20 +548,6 @@ export class App {
     const guiPanel = this.viewPanel.addComponent(ViewPanel);
     this.gui.addChild(this.viewPanel);
 
-    switch (this.mode) {
-      case 'default':
-        break;
-      case 'rnn':
-        this.worker = new Worker(new URL('./workers/rnn-worker', import.meta.url));
-        break;
-      case 'vae':
-        this.worker = new Worker(new URL('./workers/vae-worker', import.meta.url));
-        break;
-      case 'custom':
-        break;
-    }
-
-
     this.walls.add(new Wall(10, 2, -10, 1, 4, 20));
     this.walls.add(new Wall(10, 2, 10, 20, 4, 1));
     for (const wall of this.walls) {
@@ -633,6 +620,22 @@ export class App {
 
     this.spawnEnemies(3);
 
+
+    switch (this.mode) {
+      case 'rnn':
+        this.worker = new Worker(new URL('./workers/rnn-worker', import.meta.url));
+        break;
+      case 'vae':
+        this.worker = new Worker(new URL('./workers/vae-worker', import.meta.url));
+        break;
+      case 'custom':
+        await this.playMusicCustom();
+        break;
+      case 'default':
+        this.startTime = Date.now();
+        break;
+    }
+
     if (this.worker) {
       await new Promise(resolve => {
         this.worker!.onmessage = (e) => {
@@ -645,6 +648,25 @@ export class App {
     }
 
     this.started = true;
+  }
+
+  async playMusicCustom(): Promise<void> {
+    const source = this.audioContext.createBufferSource();
+    const buffer = await getBuffer(this.audioContext, this.file!);
+    this.beatSequence = await getPeaks(buffer);
+    this.readyBullets = new Set(this.beatSequence);
+
+    source.buffer = buffer;
+    source.addEventListener(
+      'ended',
+      () => this.gameDataController.gameOver(),
+      {once: true},
+    );
+    source.connect(this.audioContext.destination);
+    source.start(this.audioContext.currentTime);
+
+    this.beatTarget = 0;
+    this.startTime = Date.now();
   }
 
   playMusicNN(): void {
